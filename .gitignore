@@ -1,0 +1,7 @@
+# JUCE generated content
+Builds/
+JUCELibraryCode/
+
+# Wav files
+*.wav
+
