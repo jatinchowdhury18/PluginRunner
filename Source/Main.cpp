@@ -79,7 +79,7 @@ int main (int argc, char* argv[])
     {
         outFile = inputFile.getParentDirectory().getChildFile (inputFile.getFileNameWithoutExtension() + "-out.wav");
     }
-
+    outFile.deleteFile();
     outFile.create();
 
     // do processing
@@ -170,13 +170,15 @@ int process (const File& inputFile, ScopedFormatManager& formatManager, AudioPlu
     // prepare
     plugin->setNonRealtime (true);
     const int blockSize = 512; //@TODO: make this variable
+    plugin->setChannelLayoutOfBus(true, 0, reader->getChannelLayout());
+    plugin->setChannelLayoutOfBus(false, 0, reader->getChannelLayout());
     plugin->prepareToPlay (reader->sampleRate, blockSize);
 
     // process
     for (int n = 0; n < reader->lengthInSamples; n += blockSize)
     {
         int samplesToProcess = jmin (blockSize, (int) reader->lengthInSamples - n);
-
+        
         // create sub-block and process
         AudioBuffer<float> subBuffer (buffer.getArrayOfWritePointers(), reader->numChannels, n, samplesToProcess);
         MidiBuffer midi;
@@ -192,6 +194,12 @@ int writeToOutputFile (File& file, ScopedFormatManager& formatManager, AudioBuff
 {
     std::unique_ptr<AudioFormatWriter> writer (formatManager.findFormatForFileExtension ("wav")->createWriterFor (file.createOutputStream(),
         fileInfo.sampleRate, fileInfo.channelSet, fileInfo.bitsPerSample, StringPairArray(), 0));
+
+    if (writer.get() == nullptr)
+    {
+        std::cout << "Error: unable to write to output file" << std::endl;
+        return 1;
+    }
 
     writer->flush();
     writer->writeFromAudioSampleBuffer (buffer, 0, buffer.getNumSamples());
