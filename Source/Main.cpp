@@ -1,12 +1,27 @@
 #include "../JuceLibraryCode/JuceHeader.h"
 
+class ScopedFormatManager : public AudioFormatManager
+{
+public:
+    ScopedFormatManager()
+    {
+        registerBasicFormats();
+    }
+
+    ~ScopedFormatManager()
+    {
+        clearFormats();
+    }
+
+private:
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ScopedFormatManager)
+};
+
 int checkFileHasExtention (const File& file, String extention);
 int checkInputFile (const File& file);
 int getPlugin (std::unique_ptr<AudioPluginInstance>& plugin, String file);
-int process (const File& inputFile, AudioPluginInstance* plugin, AudioBuffer<float>& buffer);
-int writeToOutputFile (File& file, AudioBuffer<float>& buffer);
-
-AudioFormatManager formatManager;
+int process (const File& inputFile, ScopedFormatManager& formatManager, AudioPluginInstance* plugin, AudioBuffer<float>& buffer);
+int writeToOutputFile (File& file, ScopedFormatManager& formatManager, AudioBuffer<float>& buffer);
 
 struct FileInfo
 {
@@ -25,7 +40,7 @@ FileInfo fileInfo;
 int main (int argc, char* argv[])
 {
     ScopedJuceInitialiser_GUI scopedJuce;
-    formatManager.registerBasicFormats();
+    ScopedFormatManager formatManager;
 
     // Check number of args
     if (argc < 3 || argc > 4)
@@ -69,14 +84,13 @@ int main (int argc, char* argv[])
 
     // do processing
     AudioBuffer<float> buffer;
-    if (int ret = process (inputFile, plugin.get(), buffer))
+    if (int ret = process (inputFile, formatManager, plugin.get(), buffer))
         return ret;
 
-    if (int ret = writeToOutputFile (outFile, buffer))
+    if (int ret = writeToOutputFile (outFile, formatManager, buffer))
         return ret;
 
     plugin.reset (nullptr);
-    formatManager.clearFormats();
 
     return 0;
 }
@@ -133,7 +147,7 @@ int getPlugin (std::unique_ptr<AudioPluginInstance>& plugin, String file)
     return 0;
 }
 
-int process (const File& inputFile, AudioPluginInstance* plugin, AudioBuffer<float>& buffer)
+int process (const File& inputFile, ScopedFormatManager& formatManager, AudioPluginInstance* plugin, AudioBuffer<float>& buffer)
 {
     // attempt to create file reader
     std::unique_ptr<AudioFormatReader> reader (formatManager.createReaderFor (inputFile));
@@ -174,7 +188,7 @@ int process (const File& inputFile, AudioPluginInstance* plugin, AudioBuffer<flo
     return 0;
 }
 
-int writeToOutputFile (File& file, AudioBuffer<float>& buffer)
+int writeToOutputFile (File& file, ScopedFormatManager& formatManager, AudioBuffer<float>& buffer)
 {
     std::unique_ptr<AudioFormatWriter> writer (formatManager.findFormatForFileExtension ("wav")->createWriterFor (file.createOutputStream(),
         fileInfo.sampleRate, fileInfo.channelSet, fileInfo.bitsPerSample, StringPairArray(), 0));

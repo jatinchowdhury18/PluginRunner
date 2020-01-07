@@ -1,6 +1,6 @@
 # JUCE generated content
 Builds/
-JUCELibraryCode/
+JuceLibraryCode/
 
 # Wav files
 *.wav
